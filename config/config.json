@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "agarb-list-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/agarbList/AgarbListWebPart.js",
+          "manifest": "./src/webparts/agarbList/AgarbListWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "AgarbListWebPartStrings": "lib/webparts/agarbList/loc/{locale}.js"
+  }
+}
