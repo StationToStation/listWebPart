@@ -19,7 +19,7 @@
     "group": { "default": "Other" },
     "title": { "default": "agarbList" },
     "description": { "default": "agarbList description" },
-    "officeFabricIconFontName": "Page",
+    "officeFabricIconFontName": "List",
     "properties": {
       "description": "agarbList"
     }
