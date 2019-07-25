@@ -12,7 +12,7 @@ import {
   PropertyPaneSlider
 } from "@microsoft/sp-property-pane";
 import styles from "./components/AgarbList.module.scss";
-import { escape } from '@microsoft/sp-lodash-subset';
+import { escape } from "@microsoft/sp-lodash-subset";
 
 import * as strings from "AgarbListWebPartStrings";
 import MockHttpClient from "./MockHttpClient";
@@ -42,26 +42,6 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   IAgarbListWebPartProps
 > {
   public render(): void {
-    //   this.domElement.innerHTML = `
-    // <div class="${ styles.agarbList }">
-    //   <div class="${ styles.container }">
-    //     <div class="${ styles.row }">
-    //       <div class="${ styles.column }">
-    //         <span class="${ styles.title }">Welcome to SharePoint!</span>
-    //         <p class="${ styles.subTitle }">Customize SharePoint experiences using web parts.</p>
-    //         <p class="${ styles.description }">${escape(this.properties.description)}</p>
-    //         <p class="${ styles.description }">Loading from ${escape(this.context.pageContext.web.title)}</p>
-    //         <a href="https://aka.ms/spfx" class="${ styles.button }">
-    //           <span class="${ styles.label }">Learn more</span>
-    //         </a>
-    //       </div>
-    //     </div>
-    //     <div id="spListContainer" />
-    //   </div>
-    // </div>`;
-
-    // this._renderListAsync();
-
     const element: React.ReactElement<IAgarbListProps> = React.createElement(
       AgarbList,
       {
@@ -75,82 +55,43 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     ReactDom.render(element, this.domElement);
   }
 
-  private _getMockListData(): Promise<ISPLists> {
-    return MockHttpClient.get().then((data: ISPList[]) => {
-      var listData: ISPLists = { value: data };
-      return listData;
-    }) as Promise<ISPLists>;
-  }
-
-  private _getListData(): Promise<ISPLists> {
-    return this.context.spHttpClient
-      .get(
-        this.context.pageContext.web.absoluteUrl +
-          `/_api/web/lists?$filter=Hidden eq false`,
-        SPHttpClient.configurations.v1
-      )
-      .then((response: SPHttpClientResponse) => {
-        return response.json();
-      });
-  }
-
-  private _renderList(items: ISPList[]): void {
-    let html: string = "";
-    items.forEach((item: ISPList) => {
-      html += `
-    <ul class="${styles.list}">
-      <li class="${styles.listItem}">
-        <span class="ms-font-l">${item.Title}</span>
-      </li>
-    </ul>`;
-    });
-
-    const listContainer: Element = this.domElement.querySelector(
-      "#spListContainer"
-    );
-    listContainer.innerHTML = html;
-  }
-
-  private _renderListAsync(): void {
-    // Local environment
-    if (Environment.type === EnvironmentType.Local) {
-      this._getMockListData().then(response => {
-        this._renderList(response.value);
-      });
-    } else if (
-      Environment.type == EnvironmentType.SharePoint ||
-      Environment.type == EnvironmentType.ClassicSharePoint
-    ) {
-      this._getListData().then(response => {
-        this._renderList(response.value);
-      });
-    }
-  }
-
   private validateURL(value: string): Promise<string> {
-    return new Promise<string>((resolve: (validationErrorMessage: string) => void, reject: (error: any) => void): void => {
-      if (value === null ||
-        value.length === 0) value = this.context.pageContext.web.serverRelativeUrl;
+    return new Promise<string>(
+      (
+        resolve: (validationErrorMessage: string) => void,
+        reject: (error: any) => void
+      ): void => {
+        if (value === null || value.length === 0)
+          value = this.context.pageContext.web.serverRelativeUrl;
 
-      this.context.spHttpClient.get(`https://agarb.sharepoint.com${escape(value)}`, SPHttpClient.configurations.v1)
-        .then((response: SPHttpClientResponse): void => {
-          if (response.ok) {
-            resolve('');
-            return;
-          }
-          else if (response.status === 404) {
-            resolve(`List '${escape(value)}' doesn't exist in the current site`);
-            return;
-          }
-          else {
-            resolve(`Error: ${response.statusText}. Please try again`);
-            return;
-          }
-        })
-        .catch((error: any): void => {
-          resolve(error);
-        });
-    });
+        this.context.spHttpClient
+          .get(
+            `https://agarb.sharepoint.com${escape(value)}`,
+            SPHttpClient.configurations.v1
+          )
+          .then(
+            (response: SPHttpClientResponse): void => {
+              if (response.ok) {
+                resolve("");
+                return;
+              } else if (response.status === 404) {
+                resolve(
+                  `List '${escape(value)}' doesn't exist in the current site`
+                );
+                return;
+              } else {
+                resolve(`Error: ${response.statusText}. Please try again`);
+                return;
+              }
+            }
+          )
+          .catch(
+            (error: any): void => {
+              resolve(error);
+            }
+          );
+      }
+    );
   }
 
   // protected get propertiesMetadata(): IWebPartPropertiesMetadata {
@@ -168,6 +109,10 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
 
   protected get dataVersion(): Version {
     return Version.parse("1.0");
+  }
+
+  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any) {
+    console.log(propertyPath);
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
