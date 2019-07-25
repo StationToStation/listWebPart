@@ -1,3 +1,6 @@
 export interface IAgarbListProps {
-  description: string;
+  siteURL: string;
+  lists: string[];
+  top: number;
+  ODataFilter: string;
 }

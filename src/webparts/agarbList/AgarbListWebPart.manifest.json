@@ -15,13 +15,14 @@
   "supportedHosts": ["SharePointWebPart"],
 
   "preconfiguredEntries": [{
-    "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
+    "groupId": "070951d7-94da-4db8-b06e-9d581f1f55b1", // инструменты сайта
     "group": { "default": "Other" },
     "title": { "default": "agarbList" },
-    "description": { "default": "agarbList description" },
-    "officeFabricIconFontName": "List",
+    "description": { "default": "Shows content of the selected list" },
+    "officeFabricIconFontName": "CustomList",
     "properties": {
-      "description": "agarbList"
+      "description": "agarbList",
+      "siteURLLabel": ""
     }
   }]
 }

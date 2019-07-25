@@ -12,6 +12,7 @@ import {
   PropertyPaneSlider
 } from "@microsoft/sp-property-pane";
 import styles from "./components/AgarbList.module.scss";
+import { escape } from '@microsoft/sp-lodash-subset';
 
 import * as strings from "AgarbListWebPartStrings";
 import MockHttpClient from "./MockHttpClient";
@@ -22,7 +23,6 @@ import AgarbList from "./components/AgarbList";
 import { IAgarbListProps } from "./components/IAgarbListProps";
 
 export interface IAgarbListWebPartProps {
-  description: string;
   siteURL: string;
   lists: string[];
   top: number;
@@ -41,7 +41,6 @@ export interface ISPList {
 export default class AgarbListWebPart extends BaseClientSideWebPart<
   IAgarbListWebPartProps
 > {
-
   public render(): void {
     //   this.domElement.innerHTML = `
     // <div class="${ styles.agarbList }">
@@ -66,7 +65,10 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     const element: React.ReactElement<IAgarbListProps> = React.createElement(
       AgarbList,
       {
-        description: this.properties.description
+        siteURL: this.properties.siteURL,
+        lists: this.properties.lists,
+        top: this.properties.top,
+        ODataFilter: this.properties.ODataFilter
       }
     );
 
@@ -125,6 +127,32 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     }
   }
 
+  private validateURL(value: string): Promise<string> {
+    return new Promise<string>((resolve: (validationErrorMessage: string) => void, reject: (error: any) => void): void => {
+      if (value === null ||
+        value.length === 0) value = this.context.pageContext.web.serverRelativeUrl;
+
+      this.context.spHttpClient.get(`https://agarb.sharepoint.com${escape(value)}`, SPHttpClient.configurations.v1)
+        .then((response: SPHttpClientResponse): void => {
+          if (response.ok) {
+            resolve('');
+            return;
+          }
+          else if (response.status === 404) {
+            resolve(`List '${escape(value)}' doesn't exist in the current site`);
+            return;
+          }
+          else {
+            resolve(`Error: ${response.statusText}. Please try again`);
+            return;
+          }
+        })
+        .catch((error: any): void => {
+          resolve(error);
+        });
+    });
+  }
+
   // protected get propertiesMetadata(): IWebPartPropertiesMetadata {
   //   return {
   //     'title': { isSearchablePlainText: true },
@@ -154,8 +182,10 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
               groupName: strings.BasicGroupName,
               groupFields: [
                 PropertyPaneTextField("siteURL", {
-                  label: "Site url",
-                  value: this.context.pageContext.site.serverRelativeUrl
+                  label: strings.siteURLLabel,
+                  value: this.context.pageContext.site.serverRelativeUrl,
+                  onGetErrorMessage: this.validateURL.bind(this),
+                  deferredValidationTime: 500
                 }),
                 PropertyPaneDropdown("lists", {
                   label: "Lists",
@@ -175,7 +205,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                 PropertyPaneTextField("ODataFilter", {
                   // label: strings.DescriptionFieldLabel
                   label: "Odata filter"
-                }),
+                })
               ]
             }
           ]
