@@ -4,8 +4,7 @@
     "name": "list-web-part-client-side-solution",
     "id": "b871c0e4-2b5f-487b-acd5-ef23c764e439",
     "version": "1.0.0.0",
-    "includeClientSideAssets": true,
-    "isDomainIsolated": false
+    "includeClientSideAssets": true
   },
   "paths": {
     "zippedPackage": "solution/list-web-part.sppkg"

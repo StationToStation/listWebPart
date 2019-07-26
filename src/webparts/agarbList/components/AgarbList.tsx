@@ -7,7 +7,6 @@ import SimpleTable from './SimpleTable';
 export default class AgarbList extends React.Component<IAgarbListProps, {}> {
   constructor(props: IAgarbListProps) {
     super(props);
-    console.log(props);
   }
 
   public render(): JSX.Element {

@@ -24,8 +24,6 @@ const useStyles = makeStyles((theme: Theme) =>
 export default function SimpleTable(props) {
   const classes = useStyles(props);
 
-  console.log(props.items);
-
   return (
     <Paper className={classes.root}>
       <Table className={classes.table}>

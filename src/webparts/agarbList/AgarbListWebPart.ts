@@ -38,19 +38,18 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   private listsDropdownDisabled: boolean = true;
   private items: IListItem[] = [];
 
-  // constructor() {
-  //   super();
-  //   this.properties.ODataFilter="";
-  //   this.properties.listName="";
-  //   this.properties.siteURL="";
-  //   this.properties.top=5;
-  // }
-  protected onPropertyPaneConfigurationStart(): void {
-    this.properties.ODataFilter = "";
-    this.properties.listName = "";
-    this.properties.siteURL = "";
-    this.properties.top = 5;
-    this.context.propertyPane.refresh();
+  protected onAfterDeserialize(
+    deserializedObject: any,
+    dataVersion: Version
+  ): IAgarbListWebPartProps {
+    let uniqueListName = new Date().valueOf()+"List";
+    return {
+      newListName: uniqueListName,
+      ODataFilter: "",
+      listName: "",
+      siteURL: "",
+      top: 5
+    };
   }
 
   public render(): void {
@@ -81,29 +80,30 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
           .then(
             (response: SPHttpClientResponse): void => {
               if (response.ok) {
-                this.properties.listName = "";
+                resolve("");
+                this.lists = [];
                 this.context.propertyPane.refresh();
                 this.showLists();
-                resolve("");
+                this.render();
                 return;
               } else if (response.status === 404) {
                 resolve(
                   `List '${escape(value)}' doesn't exist in the current site`
                 );
-                setTimeout(()=>{                  
-                this.properties.listName = value;
-                this.lists = [];
-                this.listsDropdownDisabled = true;
-                this.context.propertyPane.refresh();
+                setTimeout(() => {
+                  this.properties.listName = value;
+                  this.lists = [];
+                  this.listsDropdownDisabled = true;
+                  this.context.propertyPane.refresh();
                 }, 1000);
                 return;
               } else {
                 resolve(`Error: ${response.statusText}. Please try again`);
-                setTimeout(()=>{                  
-                this.properties.listName = value;
-                this.lists = [];
-                this.listsDropdownDisabled = true;
-                this.context.propertyPane.refresh();
+                setTimeout(() => {
+                  this.properties.listName = value;
+                  this.lists = [];
+                  this.listsDropdownDisabled = true;
+                  this.context.propertyPane.refresh();
                 }, 1000);
                 return;
               }
@@ -135,9 +135,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     if (propertyPath === "listName" && newValue) this.showItems();
 
     if (propertyPath === "top" && this.items) {
-      console.log(this.items.length);
       if (this.items.length >= newValue) {
-        console.log("cut");
         this.items = this.items.slice(0, newValue);
       } else this.showItems();
     }
@@ -225,22 +223,20 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
               this.properties.siteURL
             )}/_api/lists/getByTitle('${escape(
               this.properties.listName
-            )}')/Items?$select=${escape(filter)}`,
+            )}')/Items?$top=${this.properties.top}&$select=${escape(filter)}`,
             SPHttpClient.configurations.v1
           )
           .then(response => response.json())
           .then(response => {
             resolve(
-              response.value
-                .map(data => {
-                  return {
-                    ID: data.ID,
-                    Title: data.Title,
-                    Modified: data.Modified,
-                    ModifiedBy: data.EditorId
-                  };
-                })
-                .slice(0, this.properties.top)
+              response.value.map(data => {
+                return {
+                  ID: data.ID,
+                  Title: data.Title,
+                  Modified: data.Modified,
+                  ModifiedBy: data.EditorId
+                };
+              })
             );
           })
           .catch(error => {
@@ -252,7 +248,6 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   }
 
   protected showItems() {
-    console.log("showing items");
     this.loadItems().then((items: IListItem[]) => {
       this.items = items;
       this.render();
@@ -260,7 +255,10 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   }
 
   protected validateNewListTextField(value: string): string {
-    if (value === null || value.trim().length === 0) {
+    console.log(this.properties.listName);
+    if (this.properties.listName)
+      return "You can't create new list if you've alredy picked one";
+    else if (value === null || value.trim().length === 0) {
       return "Provide a new list name";
     }
 
@@ -272,11 +270,12 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   }
 
   protected createList() {
-    console.log(this.properties.newListName);
     if (this.properties.newListName == "") return;
-    console.log("hi");
     const options: ISPHttpClientOptions = {
-      body: JSON.stringify({ Title: this.properties.newListName, BaseTemplate: 100 }),
+      body: JSON.stringify({
+        Title: this.properties.newListName,
+        BaseTemplate: 100
+      })
     };
     return new Promise<number>(
       (resolve: (result: number) => void, reject: (error: any) => void) => {
@@ -290,9 +289,8 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
           )
           .then(response => response.json())
           .then(result => {
-            console.log(result);
-            this.properties.listName=this.properties.newListName;
-            this.properties.newListName="";
+            this.properties.listName = this.properties.newListName;
+            this.properties.newListName = "";
             this.showItems();
             resolve(0);
           })
@@ -302,16 +300,6 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
           });
       }
     );
-    /* url: http://site url/_api/web/lists
-method: POST
-body: { '__metadata': { 'type': 'SP.List' }, 'AllowContentTypes': true, 'BaseTemplate': 100,
- 'ContentTypesEnabled': true, 'Description': 'My list description', 'Title': 'Test' }
-Headers: 
-    Authorization: "Bearer " + accessToken
-    X-RequestDigest: form digest value
-    accept: "application/json;odata=verbose"
-    content-type: "application/json;odata=verbose"
-    content-length:length of post body */
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
