@@ -2,8 +2,10 @@ declare interface IAgarbListWebPartStrings {
   PropertyPaneDescription: string;
   BasicGroupName: string;
   DescriptionFieldLabel: string;
-  siteURLLabel: string;
+  SiteURLLabel: string;
   ListNameFieldLabel: string;
+  SliderLabel: string;
+  ODataFilter: string;
 }
 
 declare module 'AgarbListWebPartStrings' {

@@ -22,6 +22,7 @@ import { Environment, EnvironmentType } from "@microsoft/sp-core-library";
 
 import AgarbList from "./components/AgarbList";
 import { IAgarbListProps } from "./components/IAgarbListProps";
+import IListItem from "./components/IListItem";
 
 export interface IAgarbListWebPartProps {
   siteURL: string;
@@ -44,15 +45,13 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
 > {
   private lists: IPropertyPaneDropdownOption[];
   private listsDropdownDisabled: boolean = true;
+  private items: IListItem[] = [];
 
   public render(): void {
     const element: React.ReactElement<IAgarbListProps> = React.createElement(
       AgarbList,
       {
-        siteURL: this.properties.siteURL,
-        top: this.properties.top,
-        ODataFilter: this.properties.ODataFilter,
-        listName: this.properties.listName || ""
+        items:this.items
       }
     );
 
@@ -76,15 +75,19 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
           .then(
             (response: SPHttpClientResponse): void => {
               if (response.ok) {
-                resolve("");
                 this.showLists();
+                resolve("");
                 return;
               } else if (response.status === 404) {
                 resolve(
                   `List '${escape(value)}' doesn't exist in the current site`
                 );
+                this.lists = [];
+                this.listsDropdownDisabled = true;
                 return;
               } else {
+                this.lists = [];
+                this.listsDropdownDisabled = true;
                 resolve(`Error: ${response.statusText}. Please try again`);
                 return;
               }
@@ -99,16 +102,8 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     );
   }
 
-  // protected get propertiesMetadata(): IWebPartPropertiesMetadata {
-  //   return {
-  //     'title': { isSearchablePlainText: true },
-  //     'intro': { isHtmlString: true },
-  //     'image': { isImageSource: true },
-  //     'url': { isLink: true }
-  //   };
-  // }
-
   protected onDispose(): void {
+    this.properties.listName = "";
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 
@@ -121,8 +116,8 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     oldValue: any,
     newValue: any
   ) {
-    console.log(propertyPath + ": " + oldValue + " -> " + newValue);
-    // this.render();
+    if (propertyPath === "listName" && newValue)
+      this.showItems();
   }
 
   private loadLists(): Promise<IPropertyPaneDropdownOption[]> {
@@ -131,16 +126,23 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
         resolve: (options: IPropertyPaneDropdownOption[]) => void,
         reject: (error: any) => void
       ) => {
-        fetch("https://agarb.sharepoint.com/sites/dev2/_api/web/lists", {
-          headers: {
-            accept: "application/json;odata=verbose",
-            "content-type": "application/json;odata=verbose"
-          }
-        })
-          .then(resonse => resonse.json())
-          .then(response => resolve(response.d.results.map(option => {return {key: option.Title, text: option.Title}})))
-            //{response.d.results.map(option => {return {key: option.Id, text: option.Title}})})
-          .catch(error => reject(error));
+        this.context.spHttpClient
+          .get(
+            `https://agarb.sharepoint.com${escape(this.properties.siteURL)}/_api/web/lists?$filter=Hidden eq false`,
+            SPHttpClient.configurations.v1
+          )
+          .then(response => response.json())
+          .then(response => {
+            resolve(
+              response.value.map(option => {
+                return { key: option.Title, text: option.Title };
+              })
+            );
+          })
+          .catch(error => {
+            console.log(error);
+            reject(error);
+          });
       }
     );
   }
@@ -148,19 +150,52 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   protected showLists(): void {
     this.listsDropdownDisabled = !this.lists;
 
-    if (this.lists) {
-      return;
+    if(this.lists) {
+      this.listsDropdownDisabled = true;
+      this.context.propertyPane.refresh();
     }
 
-    // this.context.statusRenderer.displayLoadingIndicator(this.domElement, 'lists');
+    this.loadLists().then(
+      (listOptions: IPropertyPaneDropdownOption[]): void => {
+        this.lists = listOptions;
+        this.listsDropdownDisabled = false;
+        this.context.propertyPane.refresh();
+        this.render();
+      }
+    );
+  }
 
-    this.loadLists()
-    .then((listOptions: IPropertyPaneDropdownOption[]): void => {
-      console.log(listOptions);
-      this.lists = listOptions;
-      this.listsDropdownDisabled = false;
-      this.context.propertyPane.refresh();
-      // this.context.statusRenderer.clearLoadingIndicator(this.domElement);
+  private loadItems(): Promise<IListItem[]> {
+    return new Promise<IListItem[]>(
+      (
+        resolve: (options: IListItem[]) => void,
+        reject: (error: any) => void
+      ) => {
+        this.context.spHttpClient
+          .get(
+            `https://agarb.sharepoint.com${escape(this.properties.siteURL)}/_api/lists/getByTitle('${escape(this.properties.listName)}')/Items`,
+            SPHttpClient.configurations.v1
+          )
+          .then(response => response.json())
+          .then(response => {
+            resolve(response.value.map(data => {return {
+              "ID":data.ID,
+              "Title": data.Title,
+              "Modified": data.Modified,
+              "ModifiedBy": data.EditorId,
+            }}));
+          })
+          .catch(error => {
+            console.log(error);
+            reject(error);
+          });
+      }
+    );
+  }
+
+  protected showItems() {
+    this.loadItems().then((items: IListItem[]) => {
+      this.items = items;
       this.render();
     });
   }
@@ -177,7 +212,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
               groupName: strings.BasicGroupName,
               groupFields: [
                 PropertyPaneTextField("siteURL", {
-                  label: strings.siteURLLabel,
+                  label: strings.SiteURLLabel,
                   value: this.context.pageContext.site.serverRelativeUrl,
                   onGetErrorMessage: this.validateURL.bind(this),
                   deferredValidationTime: 500
@@ -188,14 +223,14 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                   disabled: this.listsDropdownDisabled
                 }),
                 PropertyPaneSlider("top", {
-                  label: "Top",
+                  label: strings.SliderLabel,
                   min: 1,
                   max: 20,
                   value: 5
                 }),
                 PropertyPaneTextField("ODataFilter", {
                   // label: strings.DescriptionFieldLabel
-                  label: "Odata filter"
+                  label: strings.ODataFilter,
                 })
               ]
             }

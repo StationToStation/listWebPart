@@ -1,8 +1,11 @@
 define([], function() {
   return {
-    "PropertyPaneDescription": "Description",
-    "BasicGroupName": "Group Name",
+    "PropertyPaneDescription": "List viewer",
+    "BasicGroupName": "Choose list",
+    "SiteURLLabel": "Site url",
     "DescriptionFieldLabel": "Description Field",
-    "ListNameFieldLabel": "List"
+    "ListNameFieldLabel": "List",
+    "SliderLabel": "Top",
+    "ODataFilter": "Odata filter",
   }
 });
