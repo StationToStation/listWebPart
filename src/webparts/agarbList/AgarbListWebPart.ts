@@ -90,13 +90,21 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                 resolve(
                   `List '${escape(value)}' doesn't exist in the current site`
                 );
+                setTimeout(()=>{                  
+                this.properties.listName = value;
                 this.lists = [];
                 this.listsDropdownDisabled = true;
+                this.context.propertyPane.refresh();
+                }, 1000);
                 return;
               } else {
+                resolve(`Error: ${response.statusText}. Please try again`);
+                setTimeout(()=>{                  
+                this.properties.listName = value;
                 this.lists = [];
                 this.listsDropdownDisabled = true;
-                resolve(`Error: ${response.statusText}. Please try again`);
+                this.context.propertyPane.refresh();
+                }, 1000);
                 return;
               }
             }
