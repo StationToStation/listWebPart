@@ -9,6 +9,7 @@ import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField,
   PropertyPaneDropdown,
+  IPropertyPaneDropdownOption,
   PropertyPaneSlider
 } from "@microsoft/sp-property-pane";
 import styles from "./components/AgarbList.module.scss";
@@ -24,9 +25,9 @@ import { IAgarbListProps } from "./components/IAgarbListProps";
 
 export interface IAgarbListWebPartProps {
   siteURL: string;
-  lists: string[];
   top: number;
   ODataFilter: string;
+  listName: string;
 }
 
 export interface ISPLists {
@@ -41,17 +42,18 @@ export interface ISPList {
 export default class AgarbListWebPart extends BaseClientSideWebPart<
   IAgarbListWebPartProps
 > {
-  public render(): void {
-    const element: React.ReactElement<IAgarbListProps> = React.createElement(
-      AgarbList,
-      {
-        siteURL: this.properties.siteURL,
-        lists: this.properties.lists,
-        top: this.properties.top,
-        ODataFilter: this.properties.ODataFilter
-      }
-    );
+  private lists: IPropertyPaneDropdownOption[];
+  private listsDropdownDisabled: boolean = true;
 
+  public render(): void {
+    const element: React.ReactElement<IAgarbListProps> = React.createElement(AgarbList, {
+      siteURL: this.properties.siteURL,
+        top: this.properties.top,
+        ODataFilter: this.properties.ODataFilter,
+        listName: this.properties.listName || ""
+    });
+
+    console.log(this.domElement);
     ReactDom.render(element, this.domElement);
   }
 
@@ -112,7 +114,42 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   }
 
   protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any) {
-    console.log(propertyPath);
+    console.log(propertyPath+": "+oldValue+" -> "+newValue);
+    this.render();
+  }
+
+  private loadLists(): Promise<IPropertyPaneDropdownOption[]> {
+    return new Promise<IPropertyPaneDropdownOption[]>((resolve: (options: IPropertyPaneDropdownOption[]) => void, reject: (error: any) => void) => {
+      setTimeout((): void => {
+        resolve([{
+          key: 'sharedDocuments',
+          text: 'Shared Documents'
+        },
+        {
+          key: 'myDocuments',
+          text: 'My Documents'
+        }]);
+      }, 2000);
+    });
+  }
+
+  protected onPropertyPaneConfigurationStart(): void {
+    this.listsDropdownDisabled = !this.lists;
+
+    if (this.lists) {
+      return;
+    }
+
+    // this.context.statusRenderer.displayLoadingIndicator(this.domElement, 'lists');
+
+    this.loadLists()
+      .then((listOptions: IPropertyPaneDropdownOption[]): void => {
+        this.lists = listOptions;
+        this.listsDropdownDisabled = false;
+        this.context.propertyPane.refresh();
+        // this.context.statusRenderer.clearLoadingIndicator(this.domElement);
+        this.render();
+      });
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
@@ -132,14 +169,10 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                   onGetErrorMessage: this.validateURL.bind(this),
                   deferredValidationTime: 500
                 }),
-                PropertyPaneDropdown("lists", {
-                  label: "Lists",
-                  options: [
-                    { index: 0, key: 0, text: "List1" },
-                    { index: 1, key: 1, text: "List2" },
-                    { index: 2, key: 2, text: "List3" }
-                  ],
-                  selectedKey: 0
+                PropertyPaneDropdown('listName', {
+                  label: strings.ListNameFieldLabel,
+                  options: this.lists,
+                  disabled: this.listsDropdownDisabled
                 }),
                 PropertyPaneSlider("top", {
                   label: "Top",

@@ -3,6 +3,7 @@ declare interface IAgarbListWebPartStrings {
   BasicGroupName: string;
   DescriptionFieldLabel: string;
   siteURLLabel: string;
+  ListNameFieldLabel: string;
 }
 
 declare module 'AgarbListWebPartStrings' {

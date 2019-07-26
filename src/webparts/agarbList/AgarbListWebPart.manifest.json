@@ -22,7 +22,7 @@
     "officeFabricIconFontName": "CustomList",
     "properties": {
       "description": "agarbList",
-      "siteURLLabel": ""
+      "listName": ""
     }
   }]
 }
