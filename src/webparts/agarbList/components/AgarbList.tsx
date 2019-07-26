@@ -9,7 +9,6 @@ export default class AgarbList extends React.Component<IAgarbListProps, {}> {
   }
 
   public render(): JSX.Element {
-    console.log(this.props);
     return (
         <div className={styles.agarbList}>
         <div className={styles.container}>

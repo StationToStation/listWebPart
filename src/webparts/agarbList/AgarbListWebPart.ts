@@ -46,14 +46,16 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   private listsDropdownDisabled: boolean = true;
 
   public render(): void {
-    const element: React.ReactElement<IAgarbListProps> = React.createElement(AgarbList, {
-      siteURL: this.properties.siteURL,
+    const element: React.ReactElement<IAgarbListProps> = React.createElement(
+      AgarbList,
+      {
+        siteURL: this.properties.siteURL,
         top: this.properties.top,
         ODataFilter: this.properties.ODataFilter,
         listName: this.properties.listName || ""
-    });
+      }
+    );
 
-    console.log(this.domElement);
     ReactDom.render(element, this.domElement);
   }
 
@@ -75,6 +77,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
             (response: SPHttpClientResponse): void => {
               if (response.ok) {
                 resolve("");
+                this.showLists();
                 return;
               } else if (response.status === 404) {
                 resolve(
@@ -113,27 +116,36 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     return Version.parse("1.0");
   }
 
-  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any) {
-    console.log(propertyPath+": "+oldValue+" -> "+newValue);
-    this.render();
+  protected onPropertyPaneFieldChanged(
+    propertyPath: string,
+    oldValue: any,
+    newValue: any
+  ) {
+    console.log(propertyPath + ": " + oldValue + " -> " + newValue);
+    // this.render();
   }
 
   private loadLists(): Promise<IPropertyPaneDropdownOption[]> {
-    return new Promise<IPropertyPaneDropdownOption[]>((resolve: (options: IPropertyPaneDropdownOption[]) => void, reject: (error: any) => void) => {
-      setTimeout((): void => {
-        resolve([{
-          key: 'sharedDocuments',
-          text: 'Shared Documents'
-        },
-        {
-          key: 'myDocuments',
-          text: 'My Documents'
-        }]);
-      }, 2000);
-    });
+    return new Promise<IPropertyPaneDropdownOption[]>(
+      (
+        resolve: (options: IPropertyPaneDropdownOption[]) => void,
+        reject: (error: any) => void
+      ) => {
+        fetch("https://agarb.sharepoint.com/sites/dev2/_api/web/lists", {
+          headers: {
+            accept: "application/json;odata=verbose",
+            "content-type": "application/json;odata=verbose"
+          }
+        })
+          .then(resonse => resonse.json())
+          .then(response => resolve(response.d.results.map(option => {return {key: option.Title, text: option.Title}})))
+            //{response.d.results.map(option => {return {key: option.Id, text: option.Title}})})
+          .catch(error => reject(error));
+      }
+    );
   }
 
-  protected onPropertyPaneConfigurationStart(): void {
+  protected showLists(): void {
     this.listsDropdownDisabled = !this.lists;
 
     if (this.lists) {
@@ -143,13 +155,14 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     // this.context.statusRenderer.displayLoadingIndicator(this.domElement, 'lists');
 
     this.loadLists()
-      .then((listOptions: IPropertyPaneDropdownOption[]): void => {
-        this.lists = listOptions;
-        this.listsDropdownDisabled = false;
-        this.context.propertyPane.refresh();
-        // this.context.statusRenderer.clearLoadingIndicator(this.domElement);
-        this.render();
-      });
+    .then((listOptions: IPropertyPaneDropdownOption[]): void => {
+      console.log(listOptions);
+      this.lists = listOptions;
+      this.listsDropdownDisabled = false;
+      this.context.propertyPane.refresh();
+      // this.context.statusRenderer.clearLoadingIndicator(this.domElement);
+      this.render();
+    });
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
@@ -169,7 +182,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                   onGetErrorMessage: this.validateURL.bind(this),
                   deferredValidationTime: 500
                 }),
-                PropertyPaneDropdown('listName', {
+                PropertyPaneDropdown("listName", {
                   label: strings.ListNameFieldLabel,
                   options: this.lists,
                   disabled: this.listsDropdownDisabled
