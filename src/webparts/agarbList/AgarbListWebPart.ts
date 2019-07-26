@@ -7,23 +7,28 @@ import {
   PropertyPaneTextField,
   PropertyPaneDropdown,
   IPropertyPaneDropdownOption,
-  PropertyPaneSlider
+  PropertyPaneSlider,
+  PropertyPaneButton
 } from "@microsoft/sp-property-pane";
 import { escape } from "@microsoft/sp-lodash-subset";
 
 import * as strings from "AgarbListWebPartStrings";
-import { SPHttpClient, SPHttpClientResponse } from "@microsoft/sp-http";
+import {
+  SPHttpClient,
+  SPHttpClientResponse,
+  ISPHttpClientOptions
+} from "@microsoft/sp-http";
 
 import AgarbList from "./components/AgarbList";
 import { IAgarbListProps } from "./components/IAgarbListProps";
 import IListItem from "./components/IListItem";
-import { number } from "prop-types";
 
 export interface IAgarbListWebPartProps {
   siteURL: string;
   top: number;
   ODataFilter: string;
   listName: string;
+  newListName: string;
 }
 
 export default class AgarbListWebPart extends BaseClientSideWebPart<
@@ -76,6 +81,8 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
           .then(
             (response: SPHttpClientResponse): void => {
               if (response.ok) {
+                this.properties.listName = "";
+                this.context.propertyPane.refresh();
                 this.showLists();
                 resolve("");
                 return;
@@ -244,6 +251,61 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     });
   }
 
+  protected validateNewListTextField(value: string): string {
+    if (value === null || value.trim().length === 0) {
+      return "Provide a new list name";
+    }
+
+    if (value.length > 40) {
+      return "List name should not be longer than 40 characters";
+    }
+
+    return "";
+  }
+
+  protected createList() {
+    console.log(this.properties.newListName);
+    if (this.properties.newListName == "") return;
+    console.log("hi");
+    const options: ISPHttpClientOptions = {
+      body: JSON.stringify({ Title: this.properties.newListName, BaseTemplate: 100 }),
+    };
+    return new Promise<number>(
+      (resolve: (result: number) => void, reject: (error: any) => void) => {
+        this.context.spHttpClient
+          .post(
+            `https://agarb.sharepoint.com${escape(
+              this.properties.siteURL
+            )}/_api/web/lists`,
+            SPHttpClient.configurations.v1,
+            options
+          )
+          .then(response => response.json())
+          .then(result => {
+            console.log(result);
+            this.properties.listName=this.properties.newListName;
+            this.properties.newListName="";
+            this.showItems();
+            resolve(0);
+          })
+          .catch(error => {
+            console.log(error);
+            reject(error);
+          });
+      }
+    );
+    /* url: http://site url/_api/web/lists
+method: POST
+body: { '__metadata': { 'type': 'SP.List' }, 'AllowContentTypes': true, 'BaseTemplate': 100,
+ 'ContentTypesEnabled': true, 'Description': 'My list description', 'Title': 'Test' }
+Headers: 
+    Authorization: "Bearer " + accessToken
+    X-RequestDigest: form digest value
+    accept: "application/json;odata=verbose"
+    content-type: "application/json;odata=verbose"
+    content-length:length of post body */
+  }
+
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
@@ -265,6 +327,17 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                   label: strings.ListNameFieldLabel,
                   options: this.lists,
                   disabled: this.listsDropdownDisabled
+                }),
+                PropertyPaneTextField("newListName", {
+                  label: strings.newListNameLabel,
+                  disabled: this.properties.listName != "",
+                  onGetErrorMessage: this.validateNewListTextField.bind(this),
+                  deferredValidationTime: 500
+                }),
+                PropertyPaneButton("createList", {
+                  text: strings.CreateButtonText,
+                  disabled: this.properties.listName != "",
+                  onClick: this.createList.bind(this)
                 }),
                 PropertyPaneSlider("top", {
                   label: strings.SliderLabel,

@@ -7,5 +7,7 @@ define([], function() {
     "ListNameFieldLabel": "List",
     "SliderLabel": "Top",
     "ODataFilter": "Odata filter",
+    "newListNameLabel": "Create new list",
+    "CreateButtonText": "Create"
   }
 });

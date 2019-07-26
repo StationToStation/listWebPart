@@ -6,6 +6,8 @@ declare interface IAgarbListWebPartStrings {
   ListNameFieldLabel: string;
   SliderLabel: string;
   ODataFilter: string;
+  newListNameLabel: string;
+  CreateButtonText: string;
 }
 
 declare module 'AgarbListWebPartStrings' {
