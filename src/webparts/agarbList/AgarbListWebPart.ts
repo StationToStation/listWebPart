@@ -1,10 +1,7 @@
 import * as React from "react";
 import * as ReactDom from "react-dom";
 import { Version } from "@microsoft/sp-core-library";
-import {
-  BaseClientSideWebPart,
-  IWebPartPropertiesMetadata
-} from "@microsoft/sp-webpart-base";
+import { BaseClientSideWebPart } from "@microsoft/sp-webpart-base";
 import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField,
@@ -12,32 +9,21 @@ import {
   IPropertyPaneDropdownOption,
   PropertyPaneSlider
 } from "@microsoft/sp-property-pane";
-import styles from "./components/AgarbList.module.scss";
 import { escape } from "@microsoft/sp-lodash-subset";
 
 import * as strings from "AgarbListWebPartStrings";
-import MockHttpClient from "./MockHttpClient";
 import { SPHttpClient, SPHttpClientResponse } from "@microsoft/sp-http";
-import { Environment, EnvironmentType } from "@microsoft/sp-core-library";
 
 import AgarbList from "./components/AgarbList";
 import { IAgarbListProps } from "./components/IAgarbListProps";
 import IListItem from "./components/IListItem";
+import { number } from "prop-types";
 
 export interface IAgarbListWebPartProps {
   siteURL: string;
   top: number;
   ODataFilter: string;
   listName: string;
-}
-
-export interface ISPLists {
-  value: ISPList[];
-}
-
-export interface ISPList {
-  Title: string;
-  Id: string;
 }
 
 export default class AgarbListWebPart extends BaseClientSideWebPart<
@@ -47,11 +33,26 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   private listsDropdownDisabled: boolean = true;
   private items: IListItem[] = [];
 
+  // constructor() {
+  //   super();
+  //   this.properties.ODataFilter="";
+  //   this.properties.listName="";
+  //   this.properties.siteURL="";
+  //   this.properties.top=5;
+  // }
+  protected onPropertyPaneConfigurationStart(): void {
+    this.properties.ODataFilter = "";
+    this.properties.listName = "";
+    this.properties.siteURL = "";
+    this.properties.top = 5;
+    this.context.propertyPane.refresh();
+  }
+
   public render(): void {
     const element: React.ReactElement<IAgarbListProps> = React.createElement(
       AgarbList,
       {
-        items:this.items
+        items: this.items
       }
     );
 
@@ -116,11 +117,22 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     oldValue: any,
     newValue: any
   ) {
-    if (propertyPath === "listName" && newValue)
-      this.showItems();
+    if (propertyPath === "listName" && newValue) this.showItems();
+
+    if (propertyPath === "top" && this.items) {
+      console.log(this.items.length);
+      if (this.items.length >= newValue) {
+        console.log("cut");
+        this.items = this.items.slice(0, newValue);
+      } else this.showItems();
+    }
+
+    if (propertyPath === "ODataFilter") this.showItems();
   }
 
   private loadLists(): Promise<IPropertyPaneDropdownOption[]> {
+    if (!this.properties.siteURL)
+      this.properties.siteURL = this.context.pageContext.site.serverRelativeUrl;
     return new Promise<IPropertyPaneDropdownOption[]>(
       (
         resolve: (options: IPropertyPaneDropdownOption[]) => void,
@@ -128,7 +140,9 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
       ) => {
         this.context.spHttpClient
           .get(
-            `https://agarb.sharepoint.com${escape(this.properties.siteURL)}/_api/web/lists?$filter=Hidden eq false`,
+            `https://agarb.sharepoint.com${escape(
+              this.properties.siteURL
+            )}/_api/web/lists?$filter=Hidden eq false`,
             SPHttpClient.configurations.v1
           )
           .then(response => response.json())
@@ -150,7 +164,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   protected showLists(): void {
     this.listsDropdownDisabled = !this.lists;
 
-    if(this.lists) {
+    if (this.lists) {
       this.listsDropdownDisabled = true;
       this.context.propertyPane.refresh();
     }
@@ -165,7 +179,26 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
     );
   }
 
+  private validateODataFilter(value: string): string {
+    if (
+      value == "" ||
+      value == "ID" ||
+      value == "Title" ||
+      value == "Modified" ||
+      value == "ModifiedBy" ||
+      value == "EditorId"
+    ) {
+      return "";
+    } else {
+      return "This field does not exist";
+    }
+  }
+
   private loadItems(): Promise<IListItem[]> {
+    const filter =
+      this.properties.ODataFilter === ""
+        ? `ID,Title,Modified,EditorId`
+        : this.properties.ODataFilter;
     return new Promise<IListItem[]>(
       (
         resolve: (options: IListItem[]) => void,
@@ -173,17 +206,27 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
       ) => {
         this.context.spHttpClient
           .get(
-            `https://agarb.sharepoint.com${escape(this.properties.siteURL)}/_api/lists/getByTitle('${escape(this.properties.listName)}')/Items`,
+            `https://agarb.sharepoint.com${escape(
+              this.properties.siteURL
+            )}/_api/lists/getByTitle('${escape(
+              this.properties.listName
+            )}')/Items?$select=${escape(filter)}`,
             SPHttpClient.configurations.v1
           )
           .then(response => response.json())
           .then(response => {
-            resolve(response.value.map(data => {return {
-              "ID":data.ID,
-              "Title": data.Title,
-              "Modified": data.Modified,
-              "ModifiedBy": data.EditorId,
-            }}));
+            resolve(
+              response.value
+                .map(data => {
+                  return {
+                    ID: data.ID,
+                    Title: data.Title,
+                    Modified: data.Modified,
+                    ModifiedBy: data.EditorId
+                  };
+                })
+                .slice(0, this.properties.top)
+            );
           })
           .catch(error => {
             console.log(error);
@@ -194,6 +237,7 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
   }
 
   protected showItems() {
+    console.log("showing items");
     this.loadItems().then((items: IListItem[]) => {
       this.items = items;
       this.render();
@@ -229,8 +273,9 @@ export default class AgarbListWebPart extends BaseClientSideWebPart<
                   value: 5
                 }),
                 PropertyPaneTextField("ODataFilter", {
-                  // label: strings.DescriptionFieldLabel
                   label: strings.ODataFilter,
+                  onGetErrorMessage: this.validateODataFilter.bind(this),
+                  deferredValidationTime: 500
                 })
               ]
             }
